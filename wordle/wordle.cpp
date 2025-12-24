@@ -114,6 +114,19 @@ bool loginUser() {
     }
 }
 
+void loadSecretWord(char word[])
+{
+
+    ifstream file("words.txt");
+    if (!file.is_open())
+    {
+        cout << "Error opening words file\n";
+        return;
+    }
+
+    file >> word; 
+    file.close();
+}
 
 
 void showMainMenu()
@@ -128,6 +141,13 @@ void showMainMenu()
 
 int main()
 {
+
+    char testWord[MAX_SIZE];
+    loadSecretWord(testWord);
+    cout << "Secret word (test): " << testWord << endl;
+  
+
+
     int choice = 0;
 
     while (choice != 3)
