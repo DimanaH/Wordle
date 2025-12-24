@@ -21,6 +21,14 @@ using namespace std;
 
 const int MAX_SIZE = 50;
 
+const char* COLOR_GREEN = "\033[1;32m"; //right letter, right position
+const char* COLOR_YELLOW = "\033[1;33m"; // right letter, wrong position
+const char* COLOR_WHITE = "\033[1;37m"; // wrong letter
+const char* COLOR_RESET = "\033[0m";    //standard color
+
+
+
+//User management functions ->
 
 bool stringsEqual(const char a[], const char b[]) { // compares twо strings
     int i = 0;
@@ -32,7 +40,7 @@ bool stringsEqual(const char a[], const char b[]) { // compares twо strings
 }
 
 bool userExists(const char username[]) {
-	ifstream file("wordle/users.txt");// opens file for reading
+	ifstream file("users.txt");// opens file for reading
     if (!file.is_open()) return false;
 
     char fileUsername[MAX_SIZE];
@@ -64,7 +72,7 @@ void registerUser() {
     cout << "Enter password: ";
     cin >> password;
 
-	ofstream file("wordle/users.txt", ios::app);// ios adds new text at the end of the file
+	ofstream file("users.txt", ios::app);// ios adds new text at the end of the file
     if (file.is_open()) {
 		file << username << " " << password << "\n"; // writes username and password in the file
         file.close();
@@ -85,7 +93,7 @@ bool loginUser() {
     cout << "Enter password: ";
     cin >> password;
 
-	ifstream file("wordle/users.txt");// opens file for reading
+	ifstream file("users.txt");// opens file for reading
     if (!file.is_open()) {
         cout << "Error opening file\n";
         return false;
@@ -113,6 +121,7 @@ bool loginUser() {
         return false;
     }
 }
+//Main logic game functions ->
 
 void loadSecretWord(char word[])
 {
@@ -128,7 +137,31 @@ void loadSecretWord(char word[])
     file.close();
 }
 
+void printColoredResult(const char secret[], const char guess[]) { // prints the guess with colors based on correctness
+    int i = 0;
+    while (guess[i] != '\0' && secret[i] != '\0') { 
+		if (guess[i] == secret[i]) { // correct letter and position
+            cout << COLOR_GREEN << guess[i] << COLOR_RESET;
+        }
+        else {
+            bool found = false;
+            int j = 0;
+			while (secret[j] != '\0') { // check if letter exists in secret word
+                if (guess[i] == secret[j]) {
+                    found = true;
+                    break;
+                }
+                j++;
+            }
+            cout << (found ? COLOR_YELLOW : COLOR_WHITE) << guess[i] << COLOR_RESET;
+        }
+        i++;
+    }
+    cout << endl;
+}
 
+
+//Menu functions ->
 void showMainMenu()
 {
     cout << "--- Wordle Game ---\n";
