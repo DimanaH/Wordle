@@ -16,6 +16,8 @@
 
 #include <iostream>
 #include <fstream>// for file operations
+#include <cstdlib> // за rand() и srand()
+
 
 using namespace std;
 
@@ -83,7 +85,6 @@ void registerUser() {
     }
 }
 
-
 bool loginUser() {
     char username[MAX_SIZE];
     char password[MAX_SIZE];
@@ -121,20 +122,47 @@ bool loginUser() {
         return false;
     }
 }
+
 //Main logic game functions ->
 
-void loadSecretWord(char word[])
-{
+void copyString(char destination[], const char source[]) {
+    int i = 0;
 
+    while (source[i] != '\0') {
+        destination[i] = source[i];
+        i++;
+    }
+
+    destination[i] = '\0';
+}
+
+void loadRandomWord(char word[]) {
     ifstream file("words.txt");
-    if (!file.is_open())
-    {
+    if (!file.is_open()) {
         cout << "Error opening words file\n";
+        word[0] = '\0';
         return;
     }
 
-    file >> word; 
+    const int MAX_WORDS = 2342;
+	char words[MAX_WORDS][MAX_SIZE];// array to store words from file
+    int count = 0;
+
+	while (file >> words[count] && count < MAX_WORDS) {//reads words from file and store them in array 
+        count++;
+    }
     file.close();
+
+    if (count == 0) {
+        cout << "No words available in the file.\n";
+        word[0] = '\0';
+        return;
+    }
+
+	srand(82);// seed for random number generator
+	int index = rand() % count;// get random index
+
+	copyString(word, words[index]);// copy selected word to output
 }
 
 void printColoredResult(const char secret[], const char guess[]) { // prints the guess with colors based on correctness
@@ -162,6 +190,7 @@ void printColoredResult(const char secret[], const char guess[]) { // prints the
 
 
 //Menu functions ->
+
 void showMainMenu()
 {
     cout << "--- Wordle Game ---\n";
@@ -174,13 +203,6 @@ void showMainMenu()
 
 int main()
 {
-
-    char testWord[MAX_SIZE];
-    loadSecretWord(testWord);
-    cout << "Secret word (test): " << testWord << endl;
-  
-
-
     int choice = 0;
 
     while (choice != 3)
