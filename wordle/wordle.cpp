@@ -268,18 +268,19 @@ void playWordle() {
 
 
 //Admin functions ->
+
 bool isAdmin(const char username[]) {
     return stringsEqual(username, "admin");
 }
 
-bool wordExists(const char newWord[]) {
+
+bool wordExists(const char wordToCheck[]) {
     ifstream file("words.txt");
     if (!file.is_open()) return false;
 
     char word[MAX_SIZE];
-
     while (file >> word) {
-        if (stringsEqual(word, newWord)) {
+		if (stringsEqual(word, wordToCheck)) {
             file.close();
             return true;
         }
@@ -289,17 +290,15 @@ bool wordExists(const char newWord[]) {
     return false;
 }
 
+
 void addWord() {
     char newWord[MAX_SIZE];
-
     cout << "Enter word to add: ";
     cin >> newWord;
 
-    
     int length = 0;
     while (newWord[length] != '\0') length++;
-
-	if (length != WORD_LENGTH) {// check word length
+    if (length != WORD_LENGTH) {
         cout << "Word must be exactly " << WORD_LENGTH << " letters long.\n";
         return;
     }
@@ -317,9 +316,9 @@ void addWord() {
 
     file << newWord << "\n";
     file.close();
-
     cout << "Word added successfully.\n";
 }
+
 
 bool copyWordsExcluding(const char excludeWord[]) {
     ifstream inputFile("words.txt");
@@ -328,7 +327,7 @@ bool copyWordsExcluding(const char excludeWord[]) {
 
     char word[MAX_SIZE];
     while (inputFile >> word) {
-		if (!stringsEqual(word, excludeWord)) {// writes all words except the one to be removed
+		if (!stringsEqual(word, excludeWord)) { //write all words except the one to exclude
             tempFile << word << "\n";
         }
     }
@@ -337,6 +336,7 @@ bool copyWordsExcluding(const char excludeWord[]) {
     tempFile.close();
     return true;
 }
+
 
 void removeWord() {
     char wordToRemove[MAX_SIZE];
@@ -348,8 +348,8 @@ void removeWord() {
         return;
     }
 
-	if (!copyWordsExcluding(wordToRemove) || 
-		remove("words.txt") != 0 || // delete original file 
+    if (!copyWordsExcluding(wordToRemove) ||
+		remove("words.txt") != 0 ||     // delete original file
 		rename("temp.txt", "words.txt") != 0) {  // rename temp file to original file name
         cout << "Error processing file.\n";
         return;
@@ -359,25 +359,21 @@ void removeWord() {
 }
 
 
-void showAdminMenu()
-{
+void showAdminMenu() {
     cout << "--- Administrator Menu ---\n";
     cout << "1. Add word\n";
     cout << "2. Remove word\n";
     cout << "3. Back\n";
     cout << "Choice: ";
 }
-void adminMenu()
-{
-    int choice = 0;
 
-    while (choice != 3)
-    {
+void adminMenu() {
+    int choice = 0;
+    while (choice != 3) {
         showAdminMenu();
         cin >> choice;
 
-        switch (choice)
-        {
+        switch (choice) {
         case 1:
             addWord();
             break;
