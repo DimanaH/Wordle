@@ -188,7 +188,7 @@ void loadRandomWord(char word[]) {
         return;
     }
 
-	srand(time(0));// seed for random number generator
+	srand(82);// seed for random number generator
 	int index = rand() % count;// get random index
 
 	copyString(word, words[index]);// copy selected word to output
@@ -272,6 +272,93 @@ bool isAdmin(const char username[]) {
     return stringsEqual(username, "admin");
 }
 
+bool wordExists(const char newWord[]) {
+    ifstream file("words.txt");
+    if (!file.is_open()) return false;
+
+    char word[MAX_SIZE];
+
+    while (file >> word) {
+        if (stringsEqual(word, newWord)) {
+            file.close();
+            return true;
+        }
+    }
+
+    file.close();
+    return false;
+}
+
+void addWord() {
+    char newWord[MAX_SIZE];
+
+    cout << "Enter word to add: ";
+    cin >> newWord;
+
+    
+    int length = 0;
+    while (newWord[length] != '\0') length++;
+
+	if (length != WORD_LENGTH) {// check word length
+        cout << "Word must be exactly " << WORD_LENGTH << " letters long.\n";
+        return;
+    }
+
+    if (wordExists(newWord)) {
+        cout << "Word already exists.\n";
+        return;
+    }
+
+    ofstream file("words.txt", ios::app);
+    if (!file.is_open()) {
+        cout << "Error opening words file.\n";
+        return;
+    }
+
+    file << newWord << "\n";
+    file.close();
+
+    cout << "Word added successfully.\n";
+}
+
+bool copyWordsExcluding(const char excludeWord[]) {
+    ifstream inputFile("words.txt");
+    ofstream tempFile("temp.txt");
+    if (!inputFile.is_open() || !tempFile.is_open()) return false;
+
+    char word[MAX_SIZE];
+    while (inputFile >> word) {
+		if (!stringsEqual(word, excludeWord)) {// writes all words except the one to be removed
+            tempFile << word << "\n";
+        }
+    }
+
+    inputFile.close();
+    tempFile.close();
+    return true;
+}
+
+void removeWord() {
+    char wordToRemove[MAX_SIZE];
+    cout << "Enter word to remove: ";
+    cin >> wordToRemove;
+
+    if (!wordExists(wordToRemove)) {
+        cout << "Word not found.\n";
+        return;
+    }
+
+	if (!copyWordsExcluding(wordToRemove) || 
+		remove("words.txt") != 0 || // delete original file 
+		rename("temp.txt", "words.txt") != 0) {  // rename temp file to original file name
+        cout << "Error processing file.\n";
+        return;
+    }
+
+    cout << "Word removed successfully.\n";
+}
+
+
 void showAdminMenu()
 {
     cout << "--- Administrator Menu ---\n";
@@ -292,10 +379,10 @@ void adminMenu()
         switch (choice)
         {
         case 1:
-            cout << "Add word - not implemented yet\n";
+            addWord();
             break;
         case 2:
-            cout << "Remove word - not implemented yet\n";
+            removeWord();
             break;
         case 3:
             break;
