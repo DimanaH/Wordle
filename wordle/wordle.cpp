@@ -22,14 +22,16 @@
 using namespace std;
 
 const int MAX_SIZE = 50;
+const int MAX_USERS = 50;
+const int MAX_ATTEMPTS = 6;  // maximum number of attempts
+const int WORD_LENGTH = 5;   // length of the secret word
 
 const char* COLOR_GREEN = "\033[1;32m"; //right letter, right position
 const char* COLOR_YELLOW = "\033[1;33m"; // right letter, wrong position
 const char* COLOR_WHITE = "\033[1;37m"; // wrong letter
 const char* COLOR_RESET = "\033[0m";    //standard color
 
-const int MAX_ATTEMPTS = 6;  // maximum number of attempts
-const int WORD_LENGTH = 5;   // length of the secret word
+
 
 
 //User management functions ->
@@ -239,7 +241,7 @@ bool isWordGuessed(const char secret[], const char guess[]) {// checks if the gu
 }
 
 
-void playWordle() {
+void playWordle(const char loggedUser[]) {
 	char secret[WORD_LENGTH + 1];// +1 for null terminator
     loadRandomWord(secret);
     cout << "New game started! Guess the " << WORD_LENGTH << "-letter word.\n";
@@ -264,6 +266,10 @@ void playWordle() {
 
     if (!won)
         cout << "Game over! The correct word was: " << secret << endl;
+
+    updateLeaderboard(loggedUser, won);
+
+
 }
 
 
@@ -400,8 +406,103 @@ void showMainMenu()
 }
 
 
+//leadboard functions ->
+
+char lbUsernames[MAX_USERS][MAX_SIZE];
+int lbGames[MAX_USERS];
+int lbWins[MAX_USERS];
+int lbCount = 0;
+
+
+void loadLeaderboard() {
+    ifstream file("leaderboard.txt");
+    if (!file.is_open()) return;
+
+    lbCount = 0;
+    while (file >> lbUsernames[lbCount] >> lbGames[lbCount] >> lbWins[lbCount]) {
+        lbCount++;
+        if (lbCount >= MAX_USERS) break;
+    }
+    file.close();
+}
+
+void saveLeaderboard() {
+	ofstream file("leaderboard.txt");//if the file exists, it will be overwritten, otherwise it creats it
+    for (int i = 0; i < lbCount; i++) {
+        file << lbUsernames[i] << " " << lbGames[i] << " " << lbWins[i] << "\n";
+    }
+    file.close();
+}
+
+int findUserIndex(const char username[]) {
+    for (int i = 0; i < lbCount; i++) {
+        if (stringsEqual(lbUsernames[i], username)) return i;
+    }
+    return -1;
+}
+
+void updateLeaderboard(const char username[], bool won) {
+	int index = findUserIndex(username);// check if user exists in leaderboard
+    if (index == -1) { 
+		copyString(lbUsernames[lbCount], username);// the user plays for the first time
+        lbGames[lbCount] = 1;
+        lbWins[lbCount] = won ? 1 : 0;
+        lbCount++;
+    }
+	else { // user already exists in leaderboard
+        lbGames[index]++; 
+        if (won) lbWins[index]++;
+    }
+    saveLeaderboard();
+}
+
+void printLeaderboardByGames() {
+    cout << "--- Leaderboard (by games played) ---\n";
+    for (int i = 0; i < lbCount; i++) {
+        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
+            << lbWins[i] << " wins\n";
+    }
+}
+
+void printLeaderboardByWinrate() {
+    cout << "--- Leaderboard (by winrate) ---\n";
+    //  bubble sort 
+    for (int i = 0; i < lbCount - 1; i++) {
+        for (int j = 0; j < lbCount - i - 1; j++) {
+            double rate1 = lbGames[j] > 0 ? (double)lbWins[j] / lbGames[j] : 0; 
+            double rate2 = lbGames[j + 1] > 0 ? (double)lbWins[j + 1] / lbGames[j + 1] : 0;
+            if (rate1 < rate2) {
+                // swap
+                char tempName[MAX_SIZE];
+                int tempGames, tempWins;
+
+                copyString(tempName, lbUsernames[j]);
+                tempGames = lbGames[j];
+                tempWins = lbWins[j];
+
+                copyString(lbUsernames[j], lbUsernames[j + 1]);
+                lbGames[j] = lbGames[j + 1];
+                lbWins[j] = lbWins[j + 1];
+
+                copyString(lbUsernames[j + 1], tempName);
+                lbGames[j + 1] = tempGames;
+                lbWins[j + 1] = tempWins;
+            }
+        }
+    }
+    for (int i = 0; i < lbCount; i++) {
+        double rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0; 
+        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
+            << lbWins[i] << " wins (" << rate << "% winrate)\n";
+    }
+}
+
+
+
 int main()
 {
+
+    loadLeaderboard();
     int choice = 0;
     char loggedUser[MAX_SIZE];
 
@@ -418,7 +519,7 @@ int main()
                     adminMenu();
                 }
                 else {
-                    playWordle();
+                    playWordle(loggedUser);
                 }
             }
             break;
@@ -428,7 +529,7 @@ int main()
             break;
 
         case 3:
-            cout << "Exitin\n";
+            cout << "Exit\n";
             break;
 
         default:
