@@ -1930,7 +1930,6 @@ stall
 stamp
 stand
 stank
-stare
 stark
 start
 stash
@@ -2342,3 +2341,4 @@ youth
 zebra
 zesty
 zonal
+stare

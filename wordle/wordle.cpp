@@ -156,7 +156,7 @@ bool loginUser(char loggedUsername[]) {// returns true if login is successful an
     file.close();
 
     if (found) {
-        cout << "Login successful\n";
+        cout << "Login successful\n\n";
         copyString(loggedUsername, username); 
         return true;
     }
@@ -191,7 +191,7 @@ int lbCount = 0;
 
 
 void showLeaderboardMenu() {
-    cout << "--- Leaderboard ---\n";
+    cout << COLOR_BLACK_TEXT << COLOR_WHITE_BG<<"--- Leaderboard ---\n"<<COLOR_RESET;
     cout << "1. Sort by winrate\n";
     cout << "2. Sort by games played\n";
     cout << "3. Back\n";
@@ -240,76 +240,69 @@ void updateLeaderboard(const char username[], bool won) {
     saveLeaderboard();
 }
 
+void swapPlayers(int i, int j) {
+    char tempName[MAX_SIZE];
+    int tempGames = lbGames[i];
+    int tempWins = lbWins[i];
+
+    copyString(tempName, lbUsernames[i]);
+
+    copyString(lbUsernames[i], lbUsernames[j]);
+    lbGames[i] = lbGames[j];
+    lbWins[i] = lbWins[j];
+
+    copyString(lbUsernames[j], tempName);
+    lbGames[j] = tempGames;
+    lbWins[j] = tempWins;
+}
 
 void printLeaderboardByGames() {
     cout << "--- Leaderboard (by games played) ---\n";
- 
+
     for (int i = 0; i < lbCount - 1; i++) {
         for (int j = 0; j < lbCount - i - 1; j++) {
             if (lbGames[j] < lbGames[j + 1]) {
-                // swap
-                char tempName[MAX_SIZE];
-                int tempGames, tempWins;
-
-                copyString(tempName, lbUsernames[j]);
-                tempGames = lbGames[j];
-                tempWins = lbWins[j];
-
-                copyString(lbUsernames[j], lbUsernames[j + 1]);
-                lbGames[j] = lbGames[j + 1];
-                lbWins[j] = lbWins[j + 1];
-
-                copyString(lbUsernames[j + 1], tempName);
-                lbGames[j + 1] = tempGames;
-				lbWins[j + 1] = tempWins;
-                
+                swapPlayers(j, j + 1);
             }
         }
     }
+
     for (int i = 0; i < lbCount; i++) {
         double rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0;
-        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
-            << lbWins[i] << " wins (" << rate << "% winrate)\n";
-	}
-   
+        cout << lbUsernames[i] << ": "
+            << lbGames[i] << " games, "
+            << lbWins[i] << " wins ("
+            << rate << "% winrate)\n";
+    }
 }
-
-
-double printLeaderboardByWinrate() {
+void printLeaderboardByWinrate() {
     cout << "--- Leaderboard (by winrate) ---\n";
-	double rate = 0;
-    //  bubble sort 
+
     for (int i = 0; i < lbCount - 1; i++) {
         for (int j = 0; j < lbCount - i - 1; j++) {
-            double rate1 = lbGames[j] > 0 ? (double)lbWins[j] / lbGames[j] : 0;//to avoid division by zero
+            double rate1 = lbGames[j] > 0 ? (double)lbWins[j] / lbGames[j] : 0;
             double rate2 = lbGames[j + 1] > 0 ? (double)lbWins[j + 1] / lbGames[j + 1] : 0;
+
             if (rate1 < rate2) {
-                // swap
-                char tempName[MAX_SIZE];
-                int tempGames, tempWins;
-
-                copyString(tempName, lbUsernames[j]);
-                tempGames = lbGames[j];
-                tempWins = lbWins[j];
-
-                copyString(lbUsernames[j], lbUsernames[j + 1]);
-                lbGames[j] = lbGames[j + 1];
-                lbWins[j] = lbWins[j + 1];
-
-                copyString(lbUsernames[j + 1], tempName);
-                lbGames[j + 1] = tempGames;
-                lbWins[j + 1] = tempWins;
+                swapPlayers(j, j + 1);
             }
         }
     }
-    for (int i = 0; i < lbCount; i++) {
-        rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0;
-        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
-            << lbWins[i] << " wins (" << rate << "% winrate)\n";
-    }
 
-    return rate;
+    for (int i = 0; i < lbCount; i++) {
+        double rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0;
+        cout << lbUsernames[i] << ": "
+            << lbGames[i] << " games, "
+            << lbWins[i] << " wins ("
+            << rate << "% winrate)\n";
+    }
 }
+
+double GetWinrate() {
+    if (lbGames[0] == 0) return 0;
+    return (double)lbWins[0] / lbGames[0] * 100;
+}
+
 
 void viewLeaderboard() {
     int choice = 0;
@@ -482,7 +475,7 @@ void loadRandomWord(char word[]) {
 
 
     
-	srand(printLeaderboardByWinrate());       // seed random number generator, using winrate for more randomness
+	srand(GetWinrate());       // seed random number generator, using winrate for more randomness
     //srand(82);
 
     while (file >> temp) {
