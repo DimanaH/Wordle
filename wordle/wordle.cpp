@@ -19,6 +19,8 @@
 #include <cstdlib> // for rand() and srand()
 
 
+
+
 using namespace std;
 
 const int MAX_SIZE = 50;
@@ -30,11 +32,11 @@ const char* COLOR_GREEN = "\033[1;32m"; //right letter, right position
 const char* COLOR_YELLOW = "\033[1;33m"; // right letter, wrong position
 const char* COLOR_WHITE = "\033[1;37m"; // wrong letter
 const char* COLOR_RESET = "\033[0m";    //standard color
+const char* COLOR_BLACK_TEXT = "\033[30m";  
+const char* COLOR_WHITE_BG = "\033[47m";  
 
 
 
-
-//User management functions ->
 
 bool stringsEqual(const char a[], const char b[]) { // compares twо strings
     int i = 0;
@@ -42,7 +44,7 @@ bool stringsEqual(const char a[], const char b[]) { // compares twо strings
         if (a[i] != b[i]) return false;
         i++;
     }
-    return a[i] == b[i]; 
+    return a[i] == b[i];
 }
 
 void copyString(char destination[], const char source[]) {
@@ -55,6 +57,31 @@ void copyString(char destination[], const char source[]) {
 
     destination[i] = '\0';
 }
+
+
+void showMainMenu()
+{
+    cout <<COLOR_BLACK_TEXT<<COLOR_WHITE_BG<< "--- Wordle Game ---\n"<< COLOR_RESET;
+    cout << "1. Login\n";
+    cout << "2. Register\n";
+    cout << "3. Exit\n";
+    cout << "Choice: ";
+}
+
+int getValidChoice(int min, int max) {
+    int choice;
+    while (true) {
+        if (cin >> choice && choice >= min && choice <= max) {
+            return choice;
+        }
+        cout << "Invalid input. Enter number between "
+            << min << " and " << max << ": ";
+        cin.clear();
+        cin.ignore(10000, '\n');
+    }
+}
+//User management functions ->
+
 
 bool userExists(const char username[]) {
 	ifstream file("users.txt");// opens file for reading
@@ -100,7 +127,7 @@ void registerUser() {
     }
 }
 
-bool loginUser(char loggedUsername[]) {
+bool loginUser(char loggedUsername[]) {// returns true if login is successful and copies username to loggedUsername
     char username[MAX_SIZE];
     char password[MAX_SIZE];
 
@@ -130,7 +157,7 @@ bool loginUser(char loggedUsername[]) {
 
     if (found) {
         cout << "Login successful\n";
-        copyString(loggedUsername, username);
+        copyString(loggedUsername, username); 
         return true;
     }
 
@@ -140,136 +167,172 @@ bool loginUser(char loggedUsername[]) {
     }
 }
 
-//Main logic game functions ->
 
-bool isValidWord(const char guess[]) {
-	//check length of the word
-    int length = 0;
-    while (guess[length] != '\0') length++;
-    if (length != WORD_LENGTH) return false;
-
-	// check if the word exists in the file
-    ifstream file("words.txt");
-    if (!file.is_open()) return false;
-
-    char word[MAX_SIZE];
-    bool found = false;
-    while (file >> word) {
-        int i = 0;
-        while (word[i] != '\0' && guess[i] != '\0' && word[i] == guess[i]) i++;
-        if (word[i] == '\0' && guess[i] == '\0') {
-            found = true;
-            break;
-        }
-    }
-    file.close();
-    return found;
+void showUserMenu() {
+    cout << COLOR_BLACK_TEXT << COLOR_WHITE_BG
+        << "--- User Menu ---\n" << COLOR_RESET;
+    cout << "1. Play Wordle\n";
+    cout << "2. View Leaderboard\n";
+    cout << "3. Logout\n";
+    cout << "Choice: ";
 }
 
 
-void loadRandomWord(char word[]) {
-    ifstream file("words.txt");
-    if (!file.is_open()) {
-        cout << "Error opening words file\n";
-        word[0] = '\0';
-        return;
-    }
 
-    const int MAX_WORDS = 2342;
-	char words[MAX_WORDS][MAX_SIZE];// array to store words from file
-    int count = 0;
 
-	while (file >> words[count] && count < MAX_WORDS) {//reads words from file and store them in array 
-        count++;
-    }
-    file.close();
 
-    if (count == 0) {
-        cout << "No words available in the file.\n";
-        word[0] = '\0';
-        return;
-    }
 
-	srand(82);// seed for random number generator
-	int index = rand() % count;// get random index
+//leadboard functions ->
 
-	copyString(word, words[index]);// copy selected word to output
+char lbUsernames[MAX_USERS][MAX_SIZE];
+int lbGames[MAX_USERS];
+int lbWins[MAX_USERS];
+int lbCount = 0;
+
+
+void showLeaderboardMenu() {
+    cout << "--- Leaderboard ---\n";
+    cout << "1. Sort by winrate\n";
+    cout << "2. Sort by games played\n";
+    cout << "3. Back\n";
+    cout << "Choice: ";
 }
 
-void printColoredResult(const char secret[], const char guess[]) { // prints the guess with colors based on correctness
-    int i = 0;
-    while (guess[i] != '\0' && secret[i] != '\0') { 
-		if (guess[i] == secret[i]) { // correct letter and position
-            cout << COLOR_GREEN << guess[i] << COLOR_RESET;
-        }
-        else {
-            bool found = false;
-            int j = 0;
-			while (secret[j] != '\0') { // check if letter exists in secret word
-                if (guess[i] == secret[j]) {
-                    found = true;
-                    break;
-                }
-                j++;
+void loadLeaderboard() {
+    ifstream file("leaderboard.txt");
+    if (!file.is_open()) return;
+
+    lbCount = 0;
+    while (file >> lbUsernames[lbCount] >> lbGames[lbCount] >> lbWins[lbCount]) {
+        lbCount++;
+        if (lbCount >= MAX_USERS) break;
+    }
+    file.close();
+}
+
+void saveLeaderboard() {
+    ofstream file("leaderboard.txt");//if the file exists, it will be overwritten, otherwise it creats it
+    for (int i = 0; i < lbCount; i++) {
+        file << lbUsernames[i] << " " << lbGames[i] << " " << lbWins[i] << "\n";
+    }
+    file.close();
+}
+
+int findUserIndex(const char username[]) {
+    for (int i = 0; i < lbCount; i++) {
+        if (stringsEqual(lbUsernames[i], username)) return i;
+    }
+    return -1;
+}
+
+void updateLeaderboard(const char username[], bool won) {
+    int index = findUserIndex(username);// check if user exists in leaderboard
+    if (index == -1) {
+        copyString(lbUsernames[lbCount], username);// the user plays for the first time
+        lbGames[lbCount] = 1;
+        lbWins[lbCount] = won ? 1 : 0;
+        lbCount++;
+    }
+    else { // user already exists in leaderboard
+        lbGames[index]++;
+        if (won) lbWins[index]++;
+    }
+    saveLeaderboard();
+}
+
+
+void printLeaderboardByGames() {
+    cout << "--- Leaderboard (by games played) ---\n";
+ 
+    for (int i = 0; i < lbCount - 1; i++) {
+        for (int j = 0; j < lbCount - i - 1; j++) {
+            if (lbGames[j] < lbGames[j + 1]) {
+                // swap
+                char tempName[MAX_SIZE];
+                int tempGames, tempWins;
+
+                copyString(tempName, lbUsernames[j]);
+                tempGames = lbGames[j];
+                tempWins = lbWins[j];
+
+                copyString(lbUsernames[j], lbUsernames[j + 1]);
+                lbGames[j] = lbGames[j + 1];
+                lbWins[j] = lbWins[j + 1];
+
+                copyString(lbUsernames[j + 1], tempName);
+                lbGames[j + 1] = tempGames;
+				lbWins[j + 1] = tempWins;
+                
             }
-            cout << (found ? COLOR_YELLOW : COLOR_WHITE) << guess[i] << COLOR_RESET;
         }
-        i++;
     }
-    cout << endl;
+    for (int i = 0; i < lbCount; i++) {
+        double rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0;
+        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
+            << lbWins[i] << " wins (" << rate << "% winrate)\n";
+	}
+   
 }
 
 
-void getValidGuess(char guess[]) {
-    while (true) {
-        cin >> guess;
-        if (isValidWord(guess))
+double printLeaderboardByWinrate() {
+    cout << "--- Leaderboard (by winrate) ---\n";
+	double rate = 0;
+    //  bubble sort 
+    for (int i = 0; i < lbCount - 1; i++) {
+        for (int j = 0; j < lbCount - i - 1; j++) {
+            double rate1 = lbGames[j] > 0 ? (double)lbWins[j] / lbGames[j] : 0;//to avoid division by zero
+            double rate2 = lbGames[j + 1] > 0 ? (double)lbWins[j + 1] / lbGames[j + 1] : 0;
+            if (rate1 < rate2) {
+                // swap
+                char tempName[MAX_SIZE];
+                int tempGames, tempWins;
+
+                copyString(tempName, lbUsernames[j]);
+                tempGames = lbGames[j];
+                tempWins = lbWins[j];
+
+                copyString(lbUsernames[j], lbUsernames[j + 1]);
+                lbGames[j] = lbGames[j + 1];
+                lbWins[j] = lbWins[j + 1];
+
+                copyString(lbUsernames[j + 1], tempName);
+                lbGames[j + 1] = tempGames;
+                lbWins[j + 1] = tempWins;
+            }
+        }
+    }
+    for (int i = 0; i < lbCount; i++) {
+        rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0;
+        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
+            << lbWins[i] << " wins (" << rate << "% winrate)\n";
+    }
+
+    return rate;
+}
+
+void viewLeaderboard() {
+    int choice = 0;
+
+    while (choice != 3) {
+        showLeaderboardMenu();
+        choice = getValidChoice(1, 3);
+
+        switch (choice) {
+        case 1:
+            printLeaderboardByWinrate();
             break;
-        cout << "Invalid word. Make sure it has " << WORD_LENGTH
-            << " letters and is in the word list.\n";
-    }
-}
-
-bool isWordGuessed(const char secret[], const char guess[]) {// checks if the guessed word matches the secret word
-    int i = 0;
-    while (guess[i] != '\0') {
-        if (guess[i] != secret[i])
-            return false;
-        i++;
-    }
-    return true;
-}
-
-
-void playWordle(const char loggedUser[]) {
-	char secret[WORD_LENGTH + 1];// +1 for null terminator
-    loadRandomWord(secret);
-    cout << "New game started! Guess the " << WORD_LENGTH << "-letter word.\n";
-
-    char guess[MAX_SIZE];
-    int attempts = 0;
-    bool won = false;
-
-    while (attempts < MAX_ATTEMPTS) {
-        cout << "Attempt " << (attempts + 1) << "/" << MAX_ATTEMPTS << ": ";
-        getValidGuess(guess);
-        printColoredResult(secret, guess);
-
-        if (isWordGuessed(secret, guess)) {
-            cout << "Congratulations! You guessed the word!\n";
-            won = true;
+        case 2:
+            printLeaderboardByGames();
             break;
+        case 3:
+            break;
+        default:
+            cout << "Invalid choice\n";
         }
 
-        attempts++;
+        cout << "\n";
     }
-
-    if (!won)
-        cout << "Game over! The correct word was: " << secret << endl;
-
-    updateLeaderboard(loggedUser, won);
-
-
 }
 
 
@@ -286,7 +349,7 @@ bool wordExists(const char wordToCheck[]) {
 
     char word[MAX_SIZE];
     while (file >> word) {
-		if (stringsEqual(word, wordToCheck)) {
+        if (stringsEqual(word, wordToCheck)) {
             file.close();
             return true;
         }
@@ -333,7 +396,7 @@ bool copyWordsExcluding(const char excludeWord[]) {
 
     char word[MAX_SIZE];
     while (inputFile >> word) {
-		if (!stringsEqual(word, excludeWord)) { //write all words except the one to exclude
+        if (!stringsEqual(word, excludeWord)) { //write all words except the one to exclude
             tempFile << word << "\n";
         }
     }
@@ -354,9 +417,9 @@ void removeWord() {
         return;
     }
 
-    if (!copyWordsExcluding(wordToRemove) ||
-		remove("words.txt") != 0 ||     // delete original file
-		rename("temp.txt", "words.txt") != 0) {  // rename temp file to original file name
+    if (!copyWordsExcluding(wordToRemove) || //if the removal process fails
+        remove("words.txt") != 0 ||     // delete original file
+        rename("temp.txt", "words.txt") != 0) {  // rename temp file to original file name
         cout << "Error processing file.\n";
         return;
     }
@@ -366,18 +429,20 @@ void removeWord() {
 
 
 void showAdminMenu() {
-    cout << "--- Administrator Menu ---\n";
+    cout << COLOR_BLACK_TEXT << COLOR_WHITE_BG
+        << "--- Administrator Menu ---\n" << COLOR_RESET;
     cout << "1. Add word\n";
     cout << "2. Remove word\n";
-    cout << "3. Back\n";
+    cout << "3. View Leaderboard\n";
+    cout << "4. Back\n";
     cout << "Choice: ";
 }
 
 void adminMenu() {
     int choice = 0;
-    while (choice != 3) {
+    while (choice != 4) {
         showAdminMenu();
-        cin >> choice;
+        choice = getValidChoice(1, 4);
 
         switch (choice) {
         case 1:
@@ -387,149 +452,225 @@ void adminMenu() {
             removeWord();
             break;
         case 3:
+            viewLeaderboard();
+            break;
+        case 4:
             break;
         default:
             cout << "Invalid choice\n";
         }
+
+        cout << "\n";
     }
 }
 
-//Menu functions ->
-
-void showMainMenu()
-{
-    cout << "--- Wordle Game ---\n";
-    cout << "1. Login\n";
-    cout << "2. Register\n";
-    cout << "3. Exit\n";
-    cout << "Choice: ";
-}
 
 
-//leadboard functions ->
+//Main logic game functions ->
 
-char lbUsernames[MAX_USERS][MAX_SIZE];
-int lbGames[MAX_USERS];
-int lbWins[MAX_USERS];
-int lbCount = 0;
-
-
-void loadLeaderboard() {
-    ifstream file("leaderboard.txt");
-    if (!file.is_open()) return;
-
-    lbCount = 0;
-    while (file >> lbUsernames[lbCount] >> lbGames[lbCount] >> lbWins[lbCount]) {
-        lbCount++;
-        if (lbCount >= MAX_USERS) break;
+void loadRandomWord(char word[]) {
+    ifstream file("words.txt");
+    if (!file.is_open()) {
+        cout << "Error opening words file\n";
+        word[0] = '\0';
+        return;
     }
-    file.close();
-}
 
-void saveLeaderboard() {
-	ofstream file("leaderboard.txt");//if the file exists, it will be overwritten, otherwise it creats it
-    for (int i = 0; i < lbCount; i++) {
-        file << lbUsernames[i] << " " << lbGames[i] << " " << lbWins[i] << "\n";
-    }
-    file.close();
-}
+    char temp[MAX_SIZE];
+    int count = 0;
+	word[0] = '\0';  // initialize word as empty
 
-int findUserIndex(const char username[]) {
-    for (int i = 0; i < lbCount; i++) {
-        if (stringsEqual(lbUsernames[i], username)) return i;
-    }
-    return -1;
-}
 
-void updateLeaderboard(const char username[], bool won) {
-	int index = findUserIndex(username);// check if user exists in leaderboard
-    if (index == -1) { 
-		copyString(lbUsernames[lbCount], username);// the user plays for the first time
-        lbGames[lbCount] = 1;
-        lbWins[lbCount] = won ? 1 : 0;
-        lbCount++;
-    }
-	else { // user already exists in leaderboard
-        lbGames[index]++; 
-        if (won) lbWins[index]++;
-    }
-    saveLeaderboard();
-}
+    
+	srand(printLeaderboardByWinrate());       // seed random number generator, using winrate for more randomness
+    //srand(82);
 
-void printLeaderboardByGames() {
-    cout << "--- Leaderboard (by games played) ---\n";
-    for (int i = 0; i < lbCount; i++) {
-        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
-            << lbWins[i] << " wins\n";
-    }
-}
-
-void printLeaderboardByWinrate() {
-    cout << "--- Leaderboard (by winrate) ---\n";
-    //  bubble sort 
-    for (int i = 0; i < lbCount - 1; i++) {
-        for (int j = 0; j < lbCount - i - 1; j++) {
-            double rate1 = lbGames[j] > 0 ? (double)lbWins[j] / lbGames[j] : 0; 
-            double rate2 = lbGames[j + 1] > 0 ? (double)lbWins[j + 1] / lbGames[j + 1] : 0;
-            if (rate1 < rate2) {
-                // swap
-                char tempName[MAX_SIZE];
-                int tempGames, tempWins;
-
-                copyString(tempName, lbUsernames[j]);
-                tempGames = lbGames[j];
-                tempWins = lbWins[j];
-
-                copyString(lbUsernames[j], lbUsernames[j + 1]);
-                lbGames[j] = lbGames[j + 1];
-                lbWins[j] = lbWins[j + 1];
-
-                copyString(lbUsernames[j + 1], tempName);
-                lbGames[j + 1] = tempGames;
-                lbWins[j + 1] = tempWins;
-            }
+    while (file >> temp) {
+        count++;
+		if (rand() % count == 0) { // reservoir sampling
+            copyString(word, temp);
         }
     }
-    for (int i = 0; i < lbCount; i++) {
-        double rate = lbGames[i] > 0 ? (double)lbWins[i] / lbGames[i] * 100 : 0; 
-        cout << lbUsernames[i] << ": " << lbGames[i] << " games, "
-            << lbWins[i] << " wins (" << rate << "% winrate)\n";
+
+    file.close();
+
+    if (word[0] == '\0') {
+        cout << "No words available in the file.\n";
     }
 }
 
 
 
-int main()
-{
 
+bool isValidWord(const char guess[]) {
+	// check length
+    int len = 0;
+    while (guess[len] != '\0') len++;
+    if (len != WORD_LENGTH) return false;
+
+	// check all lowercase letters
+    for (int i = 0; i < len; i++) {
+		if (!(guess[i] >= 'a' && guess[i] <= 'z')) return false;
+    }
+
+    ifstream file("words.txt");
+    if (!file.is_open()) return false;
+
+    char word[MAX_SIZE];
+    while (file >> word) {
+        if (stringsEqual(word,guess)) {  
+            file.close();
+            return true;
+        }
+    }
+    file.close();
+    return false;
+}
+
+
+void printColoredResult(const char secret[], const char guess[]) {
+	bool used[WORD_LENGTH] = { false }; // tracks which letters in secret have been matched
+
+
+    
+    for (int i = 0; i < WORD_LENGTH; i++) {
+        if (guess[i] == secret[i]) {
+            cout << COLOR_GREEN << guess[i] << COLOR_RESET;
+            used[i] = true;
+        }
+        else {
+			cout << "_"; // placeholder for second pass
+        }
+    }
+	cout << "\r"; // return to the beginning of the line
+
+	// Second pass for yellow and white letters
+    for (int i = 0; i < WORD_LENGTH; i++) {
+        if (guess[i] == secret[i]) {
+            cout << COLOR_GREEN << guess[i] << COLOR_RESET;
+        }
+        else {
+            bool found = false;
+            for (int j = 0; j < WORD_LENGTH; j++) {
+                if (!used[j] && guess[i] == secret[j]) {
+                    found = true;
+                    used[j] = true;
+                    break;
+                }
+            }
+            cout << (found ? COLOR_YELLOW : COLOR_WHITE)
+                << guess[i] << COLOR_RESET;
+        }
+    }
+
+    cout << endl;
+}
+
+
+void getValidGuess(char guess[]) {
+    while (true) {
+        cin >> guess;
+        if (isValidWord(guess))
+            break;
+        cout << "Invalid word. Make sure it has " << WORD_LENGTH
+            << " letters and is in the word list.\n";
+    }
+}
+
+bool isWordGuessed(const char secret[], const char guess[]) {// checks if the guessed word matches the secret word
+    return stringsEqual(secret, guess);
+}
+
+
+void playWordle(const char loggedUser[]) {
+	char secret[WORD_LENGTH + 1];// +1 for null terminator
+    loadRandomWord(secret);
+    cout << "New game started! Guess the " << WORD_LENGTH << "-letter word.\n";
+
+    char guess[MAX_SIZE];
+    int attempts = 0;
+    bool won = false;
+
+    while (attempts < MAX_ATTEMPTS) {
+        cout << "Attempt " << (attempts + 1) << "/" << MAX_ATTEMPTS << ": ";
+        getValidGuess(guess);
+        printColoredResult(secret, guess);
+
+        if (isWordGuessed(secret, guess)) {
+            cout << "Congratulations! You guessed the word!\n";
+            won = true;
+            break;
+        }
+
+        attempts++;
+    }
+
+    if (!won)
+        cout << "Game over! The correct word was: " << secret << endl;
+
+    updateLeaderboard(loggedUser, won);
+
+
+}
+
+
+
+
+void userMenu(const char loggedUser[]) {
+    int choice = 0;
+
+    while (choice != 3) {
+        showUserMenu();
+        choice = getValidChoice(1, 3);
+
+        switch (choice) {
+        case 1:
+            playWordle(loggedUser);
+            break;
+        case 2:
+            viewLeaderboard();
+            break;
+        case 3:
+            cout << "Logging out...\n";
+            break;
+        default:
+            cout << "Invalid choice\n";
+        }
+
+        cout << "\n";
+    }
+}
+
+
+
+
+int main() {
     loadLeaderboard();
     int choice = 0;
     char loggedUser[MAX_SIZE];
 
-    while (choice != 3)
-    {
+    while (choice != 3) {
         showMainMenu();
-        cin >> choice;
+        choice = getValidChoice(1, 3);  
 
-        switch (choice)
-        {
-        case 1:
+        switch (choice) {
+        case 1:  // Login
             if (loginUser(loggedUser)) {
                 if (isAdmin(loggedUser)) {
-                    adminMenu();
+                    adminMenu();  
                 }
                 else {
-                    playWordle(loggedUser);
+                    userMenu(loggedUser);  
                 }
             }
             break;
 
-        case 2:
+        case 2:  // Register
             registerUser();
             break;
 
-        case 3:
-            cout << "Exit\n";
+        case 3:  // Exit
+            cout << "Goodbye!\n";
             break;
 
         default:
@@ -541,3 +682,4 @@ int main()
 
     return 0;
 }
+
