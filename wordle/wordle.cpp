@@ -24,7 +24,6 @@
 using namespace std;
 
 const int MAX_SIZE = 50;
-const int MAX_USERS = 50;
 const int MAX_ATTEMPTS = 6;  // maximum number of attempts
 const int WORD_LENGTH = 5;   // length of the secret word
 
@@ -38,13 +37,40 @@ const char* COLOR_WHITE_BG = "\033[47m";
 
 const int MAX_IGNORE = 10000;
 
+const char* USERS_FILE = "users.txt";
+const char* WORDS_FILE = "words.txt";
+const char* LEADERBOARD_FILE = "leaderboard.txt";
+
+
 // Structure to hold leaderboard data
+
+struct Player {
+    char username[MAX_SIZE];
+    int games;
+    int wins;
+};
 struct Leaderboard {
-    char usernames[MAX_USERS][MAX_SIZE];
-    int games[MAX_USERS];
-    int wins[MAX_USERS];
+    Player* players;
     int count;
 };
+
+enum UserCommand {
+    PLAY = 1,
+    VIEW_LEADERBOARD,
+    LOGOUT
+};
+enum MainMenuCommand {
+    LOGIN = 1,
+    REGISTER,
+    EXIT
+};
+enum AdminCommand {
+    ADD_WORD = 1,
+    REMOVE_WORD,
+    VIEW_LEADERBOARD_ADMIN,
+    BACK
+};
+
 
 
 bool stringsEqual(const char a[], const char b[]) { // compares twо strings
@@ -93,7 +119,7 @@ int getValidChoice(int min, int max) {
 
 
 bool userExists(const char username[]) {
-    ifstream file("users.txt");// opens file for reading
+    ifstream file(USERS_FILE);// opens file for reading
     if (!file.is_open()) return false;
 
     char fileUsername[MAX_SIZE];
@@ -125,7 +151,7 @@ void registerUser() {
     cout << "Enter password: ";
     cin >> password;
 
-    ofstream file("users.txt", ios::app);// ios adds new text at the end of the file
+    ofstream file(USERS_FILE, ios::app);// ios adds new text at the end of the file
     if (file.is_open()) {
         file << username << " " << password << "\n"; // writes username and password in the file
         file.close();
@@ -145,7 +171,7 @@ bool loginUser(char loggedUsername[]) {// returns true if login is successful an
     cout << "Enter password: ";
     cin >> password;
 
-    ifstream file("users.txt");// opens file for reading
+    ifstream file(USERS_FILE);// opens file for reading
     if (!file.is_open()) {
         cout << "Error opening file\n";
         return false;
@@ -203,28 +229,38 @@ void showLeaderboardMenu() {
 }
 
 void loadLeaderboard(Leaderboard& lb) {
-    ifstream file("leaderboard.txt");
+    ifstream file(LEADERBOARD_FILE);
     if (!file.is_open()) return;
 
-    lb.count = 0;
-    while (file >> lb.usernames[lb.count] >> lb.games[lb.count] >> lb.wins[lb.count]) {
-        lb.count++;
-        if (lb.count >= MAX_USERS) break;
+    file >> lb.count;
+    lb.players = new Player[lb.count];
+
+    for (int i = 0; i < lb.count; i++) {
+        file >> lb.players[i].username
+            >> lb.players[i].games
+            >> lb.players[i].wins;
     }
+
     file.close();
 }
 
+
 void saveLeaderboard(const Leaderboard& lb) {
-    ofstream file("leaderboard.txt");//if the file exists, it will be overwritten, otherwise it creats it
+    ofstream file(LEADERBOARD_FILE);//if the file exists, it will be overwritten, otherwise it creats it
+    file << lb.count << "\n";
     for (int i = 0; i < lb.count; i++) {
-        file << lb.usernames[i] << " " << lb.games[i] << " " << lb.wins[i] << "\n";
+        file << lb.players[i].username << " "
+            << lb.players[i].games << " "
+            << lb.players[i].wins << "\n";
+        ;
     }
     file.close();
 }
 
 int findUserIndex(const Leaderboard& lb, const char username[]) {
     for (int i = 0; i < lb.count; i++) {
-        if (stringsEqual(lb.usernames[i], username)) return i;
+        if (stringsEqual(lb.players[i].username, username))
+            return i;
     }
     return -1;
 }
@@ -232,81 +268,68 @@ int findUserIndex(const Leaderboard& lb, const char username[]) {
 void updateLeaderboard(Leaderboard& lb, const char username[], bool won) {
     int index = findUserIndex(lb, username);// check if user exists in leaderboard
     if (index == -1) {
-        copyString(lb.usernames[lb.count], username);// the user plays for the first time
-        lb.games[lb.count] = 1;
-        lb.wins[lb.count] = won ? 1 : 0;
+
+        Player* newPlayers = new Player[lb.count + 1];
+
+        for (int i = 0; i < lb.count; i++) {
+            newPlayers[i] = lb.players[i];
+        }
+
+        delete[] lb.players;
+        lb.players = newPlayers;
+
+        copyString(lb.players[lb.count].username, username);//the users plays for the first time
+        lb.players[lb.count].games = 1;
+        lb.players[lb.count].wins = won ? 1 : 0;
+
         lb.count++;
     }
     else { // user already exists in leaderboard
-        lb.games[index]++;
-        if (won) lb.wins[index]++;
+        lb.players[index].games++;
+        if (won) lb.players[index].wins++;
     }
     saveLeaderboard(lb);
 }
 
 void swapPlayers(Leaderboard& lb, int i, int j) {
-    char tempName[MAX_SIZE];
-    int tempGames = lb.games[i];
-    int tempWins = lb.wins[i];
-
-    copyString(tempName, lb.usernames[i]);
-
-    copyString(lb.usernames[i], lb.usernames[j]);
-    lb.games[i] = lb.games[j];
-    lb.wins[i] = lb.wins[j];
-
-    copyString(lb.usernames[j], tempName);
-    lb.games[j] = tempGames;
-    lb.wins[j] = tempWins;
+    Player temp = lb.players[i];
+    lb.players[i] = lb.players[j];
+    lb.players[j] = temp;
 }
 
-void printLeaderboardByGames(Leaderboard& lb) {
-    cout << "--- Leaderboard (by games played) ---\n";
-
+void sortByGames(Leaderboard& lb) {
     for (int i = 0; i < lb.count - 1; i++) {
         for (int j = 0; j < lb.count - i - 1; j++) {
-            if (lb.games[j] < lb.games[j + 1]) {
+            if (lb.players[j].games < lb.players[j + 1].games) {
                 swapPlayers(lb, j, j + 1);
             }
         }
     }
-
-    for (int i = 0; i < lb.count; i++) {
-        double rate = lb.games[i] > 0 ? (double)lb.wins[i] / lb.games[i] * 100 : 0;
-        cout << lb.usernames[i] << ": "
-            << lb.games[i] << " games, "
-            << lb.wins[i] << " wins ("
-            << rate << "% winrate)\n";
-    }
 }
 
-void printLeaderboardByWinrate(Leaderboard& lb) {
-    cout << "--- Leaderboard (by winrate) ---\n";
 
+
+double winrate(const Player& p) {
+    return p.games > 0 ? (double)p.wins / p.games : 0;
+}
+void sortByWinrate(Leaderboard& lb) {
     for (int i = 0; i < lb.count - 1; i++) {
         for (int j = 0; j < lb.count - i - 1; j++) {
-            double rate1 = lb.games[j] > 0 ? (double)lb.wins[j] / lb.games[j] : 0;
-            double rate2 = lb.games[j + 1] > 0 ? (double)lb.wins[j + 1] / lb.games[j + 1] : 0;
-
-            if (rate1 < rate2) {
+            if (winrate(lb.players[j]) < winrate(lb.players[j + 1])) {
                 swapPlayers(lb, j, j + 1);
             }
         }
     }
+}
 
+void printLeaderboard(const Leaderboard& lb) {
     for (int i = 0; i < lb.count; i++) {
-        double rate = lb.games[i] > 0 ? (double)lb.wins[i] / lb.games[i] * 100 : 0;
-        cout << lb.usernames[i] << ": "
-            << lb.games[i] << " games, "
-            << lb.wins[i] << " wins ("
-            << rate << "% winrate)\n";
+        cout << lb.players[i].username << " | "
+            << lb.players[i].games << " games | "
+            << lb.players[i].wins << " wins\n";
     }
 }
 
-double GetWinrate(const Leaderboard& lb) {
-    if (lb.games[0] == 0) return 0;
-    return (double)lb.wins[0] / lb.games[0] * 100;
-}
 
 
 void viewLeaderboard(Leaderboard& lb) {
@@ -318,20 +341,19 @@ void viewLeaderboard(Leaderboard& lb) {
 
         switch (choice) {
         case 1:
-            printLeaderboardByWinrate(lb);
+            sortByWinrate(lb);
+            printLeaderboard(lb);
             break;
         case 2:
-            printLeaderboardByGames(lb);
+            sortByGames(lb);
+            printLeaderboard(lb);
             break;
         case 3:
             break;
-        default:
-            cout << "Invalid choice\n";
         }
-
-        cout << "\n";
     }
 }
+
 
 
 //Admin functions ->
@@ -342,7 +364,7 @@ bool isAdmin(const char username[]) {
 
 
 bool wordExists(const char wordToCheck[]) {
-    ifstream file("words.txt");
+    ifstream file(WORDS_FILE);
     if (!file.is_open()) return false;
 
     char word[MAX_SIZE];
@@ -375,7 +397,7 @@ void addWord() {
         return;
     }
 
-    ofstream file("words.txt", ios::app);
+    ofstream file(WORDS_FILE, ios::app);
     if (!file.is_open()) {
         cout << "Error opening words file.\n";
         return;
@@ -388,7 +410,7 @@ void addWord() {
 
 
 bool copyWordsExcluding(const char excludeWord[]) {
-    ifstream inputFile("words.txt");
+    ifstream inputFile(WORDS_FILE);
     ofstream tempFile("temp.txt");
     if (!inputFile.is_open() || !tempFile.is_open()) return false;
 
@@ -416,8 +438,8 @@ void removeWord() {
     }
 
     if (!copyWordsExcluding(wordToRemove) || //if the removal process fails
-        remove("words.txt") != 0 ||     // delete original file
-        rename("temp.txt", "words.txt") != 0) {  // rename temp file to original file name
+        remove(WORDS_FILE) != 0 ||     // delete original file
+        rename("temp.txt", WORDS_FILE) != 0) {  // rename temp file to original file name
         cout << "Error processing file.\n";
         return;
     }
@@ -443,16 +465,16 @@ void adminMenu(Leaderboard& lb) {
         choice = getValidChoice(1, 4);
 
         switch (choice) {
-        case 1:
+        case ADD_WORD:
             addWord();
             break;
-        case 2:
+        case REMOVE_WORD:
             removeWord();
             break;
-        case 3:
+        case VIEW_LEADERBOARD_ADMIN:
             viewLeaderboard(lb);
             break;
-        case 4:
+        case BACK:
             break;
         default:
             cout << "Invalid choice\n";
@@ -466,8 +488,8 @@ void adminMenu(Leaderboard& lb) {
 
 //Main logic game functions ->
 
-void loadRandomWord(const Leaderboard& lb, char word[]) {
-    ifstream file("words.txt");
+void loadRandomWord( char word[]) {
+    ifstream file(WORDS_FILE);
     if (!file.is_open()) {
         cout << "Error opening words file\n";
         word[0] = '\0';
@@ -479,9 +501,6 @@ void loadRandomWord(const Leaderboard& lb, char word[]) {
     word[0] = '\0';  // initialize word as empty
 
 
-
-    srand(GetWinrate(lb));       // seed random number generator, using winrate for more randomness
-    //srand(82);
 
     while (file >> temp) {
         count++;
@@ -511,7 +530,7 @@ bool isValidWord(const char guess[]) {
         if (!(guess[i] >= 'a' && guess[i] <= 'z')) return false;
     }
 
-    ifstream file("words.txt");
+    ifstream file(WORDS_FILE);
     if (!file.is_open()) return false;
 
     char word[MAX_SIZE];
@@ -581,8 +600,10 @@ bool isWordGuessed(const char secret[], const char guess[]) {// checks if the gu
 
 
 void playWordle(Leaderboard& lb, const char loggedUser[]) {
+
+    srand(lb.count + 1);// seed random number generator, using leadboard count for more randomness
     char secret[WORD_LENGTH + 1];// +1 for null terminator
-    loadRandomWord(lb, secret);
+    loadRandomWord( secret);
     cout << "New game started! Guess the " << WORD_LENGTH << "-letter word.\n";
 
     char guess[MAX_SIZE];
@@ -622,13 +643,13 @@ void userMenu(Leaderboard& lb, const char loggedUser[]) {
         choice = getValidChoice(1, 3);
 
         switch (choice) {
-        case 1:
+        case PLAY:
             playWordle(lb, loggedUser);
             break;
-        case 2:
+        case VIEW_LEADERBOARD:
             viewLeaderboard(lb);
             break;
-        case 3:
+        case LOGOUT:
             cout << "Logging out...\n";
             break;
         default:
@@ -643,7 +664,10 @@ void userMenu(Leaderboard& lb, const char loggedUser[]) {
 
 
 int main() {
-    Leaderboard leaderboard = { {}, {}, {}, 0 }; // initialize leaderboard structure
+    Leaderboard leaderboard;
+    leaderboard.players = nullptr;
+    leaderboard.count = 0;
+    // initialize leaderboard structure
     loadLeaderboard(leaderboard);
     int choice = 0;
     char loggedUser[MAX_SIZE];
@@ -653,31 +677,36 @@ int main() {
         choice = getValidChoice(1, 3);
 
         switch (choice) {
-        case 1:  // Login
+        case LOGIN:
             if (loginUser(loggedUser)) {
-                if (isAdmin(loggedUser)) {
-                    adminMenu(leaderboard);
-                }
-                else {
-                    userMenu(leaderboard, loggedUser);
-                }
-            }
-            break;
-
-        case 2:  // Register
+                            if (isAdmin(loggedUser)) {
+                                adminMenu(leaderboard);
+                            }
+                            else {
+                                userMenu(leaderboard, loggedUser);
+                            }
+                        }
+                        break;
+                
+        case REGISTER:
             registerUser();
-            break;
-
-        case 3:  // Exit
+                  break;
+           
+        case EXIT:
             cout << "Goodbye!\n";
-            break;
+                   break;
 
-        default:
-            cout << "Invalid choice, try again.\n";
+                default:
+                    cout << "Invalid choice, try again.\n";
+                }
+
+                cout << "\n";
         }
 
-        cout << "\n";
+    if (leaderboard.players != nullptr) {
+        delete[] leaderboard.players;
     }
+
 
     return 0;
 }
