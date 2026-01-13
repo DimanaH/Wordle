@@ -516,20 +516,14 @@ bool isValidWord(const char guess[]) {
 }
 
 void printColoredResult(const char secret[], const char guess[]) {
-    bool used[WORD_LENGTH] = { false }; // tracks which letters in secret have been matched
+    bool used[WORD_LENGTH] = { false };// array to track which letters in the secret word have been matched
 
     for (int i = 0; i < WORD_LENGTH; i++) {
         if (guess[i] == secret[i]) {
-            cout << COLOR_GREEN << guess[i] << COLOR_RESET;
             used[i] = true;
         }
-        else {
-            cout << "_"; // placeholder for second pass
-        }
     }
-    cout << "\r"; // return to the beginning of the line
 
-    // Second pass for yellow and white letters
     for (int i = 0; i < WORD_LENGTH; i++) {
         if (guess[i] == secret[i]) {
             cout << COLOR_GREEN << guess[i] << COLOR_RESET;
@@ -543,11 +537,9 @@ void printColoredResult(const char secret[], const char guess[]) {
                     break;
                 }
             }
-            cout << (found ? COLOR_YELLOW : COLOR_WHITE)
-                << guess[i] << COLOR_RESET;
+            cout << (found ? COLOR_YELLOW : COLOR_WHITE) << guess[i] << COLOR_RESET;
         }
     }
-
     cout << endl;
 }
 
