@@ -18,8 +18,6 @@
 #include <cstdlib> // for rand() and srand()
 using namespace std;
 
-const int MAX_IGNORE = 10000;
-const int MAX_RAND_SEED = 1000;
 const int MAX_SIZE = 50;
 const int MAX_ATTEMPTS = 6;  // maximum number of attempts
 const int WORD_LENGTH = 5;   // length of the secret word
@@ -31,11 +29,15 @@ const char* COLOR_RESET = "\033[0m";    //standard color
 const char* COLOR_BLACK_TEXT = "\033[30m";
 const char* COLOR_WHITE_BG = "\033[47m";
 
+const int MAX_IGNORE = 10000;
+const int FOR_RAND_NUM = 1000;
+
 const char* USERS_FILE = "users.txt";
 const char* WORDS_FILE = "words.txt";
 const char* LEADERBOARD_FILE = "leaderboard.txt";
 
-// Structure to hold leaderboard data
+
+// Player statistics and leaderboard management
 struct Player {
     char username[MAX_SIZE];
     int games;
@@ -70,7 +72,7 @@ bool stringsEqual(const char a[], const char b[]) {
         if (a[i] != b[i]) return false;
         i++;
     }
-    return a[i] == b[i];
+    return a[i] == b[i];// Both strings must end at the same position
 }
 
 void copyString(char destination[], const char source[]) { 
@@ -81,11 +83,10 @@ void copyString(char destination[], const char source[]) {
         i++;
     }
 
-    destination[i] = '\0';
+    destination[i] = '\0';// Null-terminate the destination string
 }
 
-void showMainMenu()
-{
+void showMainMenu() {
     cout << COLOR_BLACK_TEXT << COLOR_WHITE_BG << "--- Wordle Game ---\n" << COLOR_RESET;
     cout << "1. Login\n";
     cout << "2. Register\n";
@@ -95,7 +96,7 @@ void showMainMenu()
 
 int getValidChoice(int min, int max) {
     int choice;
-    while (true) {
+    while (true) {//until its entered valid choice
         if (cin >> choice && choice >= min && choice <= max) {
             return choice;
         }
@@ -132,7 +133,7 @@ void registerUser() {
     cout << "Enter username: ";
     cin >> username;
 
-    if (userExists(username)) {// check if username already exists
+    if (userExists(username)) {
         cout << "Username already exists\n";
         return;
     }
@@ -211,10 +212,21 @@ void showLeaderboardMenu() {
 
 void loadLeaderboard(Leaderboard& lb) {
     ifstream file(LEADERBOARD_FILE);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        lb.count = 0;//no players
+        lb.players = nullptr;//no array to store players
+        return;
+    }
 
     file >> lb.count;
-    lb.players = new Player[lb.count];
+    if (lb.count <= 0) {
+        lb.count = 0;
+        lb.players = nullptr;
+        file.close();
+        return;
+    }
+
+    lb.players = new Player[lb.count];//the same amount of structures as players
 
     for (int i = 0; i < lb.count; i++) {
         file >> lb.players[i].username
@@ -232,6 +244,7 @@ void saveLeaderboard(const Leaderboard& lb) {
         file << lb.players[i].username << " "
             << lb.players[i].games << " "
             << lb.players[i].wins << "\n";
+        
     }
     file.close();
 }
@@ -250,14 +263,14 @@ void updateLeaderboard(Leaderboard& lb, const char username[], bool won) {
 
         Player* newPlayers = new Player[lb.count + 1];
 
-        for (int i = 0; i < lb.count; i++) {
+        for (int i = 0; i < lb.count; i++) {//copy the old players
             newPlayers[i] = lb.players[i];
         }
 
         delete[] lb.players;
-        lb.players = newPlayers;
+        lb.players = newPlayers;//ld.players now points to the new array
 
-        copyString(lb.players[lb.count].username, username);//the users plays for the first time
+        copyString(lb.players[lb.count].username, username);
         lb.players[lb.count].games = 1;
         lb.players[lb.count].wins = won ? 1 : 0;
 
@@ -280,10 +293,10 @@ double winrate(const Player& p) {
     return p.games > 0 ? (double)p.wins / p.games : 0;
 }
 
-void sortLeaderboard(Leaderboard& lb, bool (*compare)(const Player&, const Player&)) {//compare is a pointer to a function 
+void sortLeaderboard(Leaderboard& lb, bool (*compare)(const Player&, const Player&)) {//compare is a pointer to a function
     for (int i = 0; i < lb.count - 1; i++) {
         for (int j = 0; j < lb.count - i - 1; j++) {
-            if (compare(lb.players[j], lb.players[j + 1])) { //if the two players are in the wrong order
+            if (compare(lb.players[j], lb.players[j + 1])) {//if the two players are in the wrong order
                 swapPlayers(lb, j, j + 1);
             }
         }
@@ -299,12 +312,12 @@ void printLeaderboard(const Leaderboard& lb) {
         cout << lb.players[i].username << " | "
             << lb.players[i].games << " games | "
             << lb.players[i].wins << " wins\n"
-            << (winrate(lb.players[i]) * 100) << "% winrate\n";;
+            << (winrate(lb.players[i]) * 100) << "% winrate\n";
     }
 }
 
 void viewLeaderboard(Leaderboard& lb) {
-    int choice = 0;
+     int choice = 0;
 
     while (choice != 3) {
         showLeaderboardMenu();
@@ -312,20 +325,17 @@ void viewLeaderboard(Leaderboard& lb) {
 
         if (choice == 3) break;
 
-       // temporary copy of the array to sort without changing the original
+        // temporary copy of the array to sort without changing the original
         Player* temp = new Player[lb.count];
         for (int i = 0; i < lb.count; i++)
             temp[i] = lb.players[i];
 
-        Leaderboard tempLb;
-        tempLb.players = temp;
-        tempLb.count = lb.count;
+        Leaderboard tempLb = {temp, lb.count};
 
         if (choice == 1) sortLeaderboard(tempLb, compareByWinrate);
         else if (choice == 2) sortLeaderboard(tempLb, compareByGames);
 
         printLeaderboard(tempLb);
-
         delete[] temp; 
     }
 }
@@ -334,6 +344,7 @@ void viewLeaderboard(Leaderboard& lb) {
 bool isAdmin(const char username[]) {
     return stringsEqual(username, "admin");
 }
+
 
 bool wordExists(const char wordToCheck[]) {
     ifstream file(WORDS_FILE);
@@ -453,7 +464,7 @@ void adminMenu(Leaderboard& lb) {
 }
 
 //Main logic game functions ->
-void loadRandomWord(char word[]) {
+void loadRandomWord( char word[]) {
     ifstream file(WORDS_FILE);
     if (!file.is_open()) {
         cout << "Error opening words file\n";
@@ -540,6 +551,7 @@ void printColoredResult(const char secret[], const char guess[]) {
     cout << endl;
 }
 
+
 void getValidGuess(char guess[]) {
     while (true) {
         cin >> guess;
@@ -555,13 +567,13 @@ bool isWordGuessed(const char secret[], const char guess[]) {// checks if the gu
 }
 
 void playWordle(Leaderboard& lb, const char loggedUser[]) {
- 
-    srand(lb.count + rand() % MAX_RAND_SEED);// seed random number generator, using leadboard count for more randomness
+
+    srand(lb.count + rand() % FOR_RAND_NUM);// seed random number generator, using leadboard count for more randomness
     char secret[WORD_LENGTH + 1];// +1 for null terminator
     loadRandomWord(secret);
     if (secret[0] == '\0') {
         cout << "No words available in words.txt. Please ask admin to add words.\n";
-        return; 
+        return;
     }
 
     cout << "New game started! Guess the " << WORD_LENGTH << "-letter word.\n";
@@ -580,7 +592,6 @@ void playWordle(Leaderboard& lb, const char loggedUser[]) {
             won = true;
             break;
         }
-
         attempts++;
     }
 
@@ -625,29 +636,28 @@ int main() {
     char loggedUser[MAX_SIZE];
 
     while (choice != 3) {
-        showMainMenu();
-        choice = getValidChoice(1, 3);
+       showMainMenu();
+       choice = getValidChoice(1, 3);
 
         switch (choice) {
         case LOGIN:
             if (loginUser(loggedUser)) {
-
-                if (isAdmin(loggedUser)) {
-                    adminMenu(leaderboard);
-                }
+               if (isAdmin(loggedUser)) {
+                   adminMenu(leaderboard);
+               }
                 else {
                     userMenu(leaderboard, loggedUser);
                 }
             }
-        break;
-              
+              break;
+                
         case REGISTER:
             registerUser();
-            break;
+               break;
            
         case EXIT:
             cout << "Goodbye!\n";
-            break;
+               break;
 
         default:
             cout << "Invalid choice, try again.\n";
